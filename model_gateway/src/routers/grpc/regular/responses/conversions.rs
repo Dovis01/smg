@@ -366,6 +366,7 @@ fn push_role_message(messages: &mut Vec<ChatMessage>, role: &str, content: Messa
             ChatMessage::System {
                 content: MessageContent::Text(format!("Developer instructions:\n{text}")),
                 name: None,
+                ext: Default::default(),
             },
         ),
     }

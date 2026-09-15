@@ -26,6 +26,6 @@ pub use parsers::chat_reasoning_starts_in_prefill;
 pub(crate) use parsers::{
     check_reasoning_parser_availability, check_tool_parser_availability, continues_final_assistant,
     create_reasoning_parser, create_tool_parser, get_tool_parser,
-    reasoning_parser_requires_special_tokens, reasoning_starts_in_prefill,
+    reasoning_parser_requires_special_tokens, reasoning_starts_in_prefill, resolve_user_thinking,
     should_mark_reasoning_started, ParserResolver,
 };

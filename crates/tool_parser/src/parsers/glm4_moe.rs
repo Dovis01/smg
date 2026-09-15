@@ -503,10 +503,13 @@ impl Glm4MoeParser {
     /// calls): `assistant_turn ::= thinking_block text tool_calls`. Argument
     /// pairs stay non-strict — omittable, repeatable, any order — with
     /// shallow schema constraints (enums, JSON types) on values. An empty
-    /// `tools` list yields a grammar with no tool-call branch.
+    /// `tools` list yields a grammar with no tool-call branch; otherwise
+    /// `at_least_one` selects `tool_call+` — a call is forced, matching
+    /// required / named / required-mode tool choices — over `tool_call*`.
     pub(crate) fn generate_chat_ebnf(
         tools: &[Tool],
         enable_thinking: bool,
+        at_least_one: bool,
     ) -> Result<String, String> {
         let mut rules = vec![
             "root ::= assistant_turn".to_owned(),
@@ -524,7 +527,11 @@ impl Glm4MoeParser {
         if tools.is_empty() {
             rules.push("tool_calls ::= \"\"".to_owned());
         } else {
-            rules.push("tool_calls ::= tool_call*".to_owned());
+            rules.push(if at_least_one {
+                "tool_calls ::= tool_call+".to_owned()
+            } else {
+                "tool_calls ::= tool_call*".to_owned()
+            });
             rules.push(format!(
                 "tool_call ::= \"<tool_call>\" ({}) \"</tool_call>\"",
                 (0..tools.len())
@@ -580,6 +587,24 @@ mod tests {
                 strict: None,
             },
         }]
+    }
+
+    // A forcing tool_choice must not permit a tool-less assistant turn.
+    #[test]
+    fn chat_ebnf_requires_a_call_only_when_forced() {
+        let tools = tool_with_props(serde_json::json!({
+            "city": {"type": "string"}
+        }));
+        let grammar = Glm4MoeParser::generate_chat_ebnf(&tools, false, false).unwrap();
+        assert!(grammar.contains("tool_calls ::= tool_call*"));
+        assert!(!grammar.contains("tool_calls ::= tool_call+"));
+
+        let grammar = Glm4MoeParser::generate_chat_ebnf(&tools, true, true).unwrap();
+        assert!(grammar.contains("tool_calls ::= tool_call+"));
+
+        // No tools permitted → no tool-call branch regardless of forcing.
+        let grammar = Glm4MoeParser::generate_chat_ebnf(&[], true, true).unwrap();
+        assert!(grammar.contains("tool_calls ::= \"\""));
     }
 
     // String-typed params stay strings even when they look numeric/bool/array.

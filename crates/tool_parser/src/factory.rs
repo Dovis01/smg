@@ -214,7 +214,16 @@ impl ParserRegistry {
             } else {
                 tools
             };
-            return Glm4MoeParser::generate_chat_ebnf(tools, enable_thinking)
+            // Forcing choices (required, named function, allowed-tools in
+            // required mode) must not permit a tool-less turn, so the
+            // grammar requires at least one call.
+            let at_least_one = match tool_choice {
+                ToolChoice::Value(ToolChoiceValue::Required) => true,
+                ToolChoice::Function { .. } => true,
+                ToolChoice::AllowedTools { mode, .. } => mode == "required",
+                ToolChoice::Value(ToolChoiceValue::None | ToolChoiceValue::Auto) => false,
+            };
+            return Glm4MoeParser::generate_chat_ebnf(tools, enable_thinking, at_least_one)
                 .map(|grammar| Some(ToolConstraint::Ebnf(grammar)));
         }
         self.generate_tool_constraint(configured_parser, tools, tool_choice)
